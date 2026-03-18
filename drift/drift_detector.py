@@ -1,16 +1,15 @@
 def detect_risk_drift(df):
-
     """
-    Detects portfolio risk drift and explains the reason.
+    Detects portfolio risk drift over time for a given ticker.
+    Flags days where the risk profile fundamentally shifted.
     """
-
-    # sort by client and month
-    df = df.sort_values(by=["client_id", "month"])
-
-    # calculate changes
-    df["volatility_change"] = df.groupby("client_id")["volatility"].diff()
-    df["concentration_change"] = df.groupby("client_id")["concentration"].diff()
-    df["equity_change"] = df.groupby("client_id")["equity_pct"].diff()
+    # Ensure it's sorted by date
+    df = df.sort_values(by="Date").copy()
+    
+    # Calculate daily changes in our risk features
+    df["volatility_change"] = df["volatility_30d"].diff()
+    df["momentum_change"] = df["momentum_30d"].diff()
+    df["drawdown_change"] = df["max_drawdown_90d"].diff()
 
     # initialize columns
     df["risk_drift"] = False
@@ -18,17 +17,19 @@ def detect_risk_drift(df):
 
     # iterate through rows
     for i in df.index:
-
         reasons = []
 
-        if abs(df.loc[i, "volatility_change"]) > 5:
-            reasons.append("Volatility change")
+        # Volatility spike
+        if abs(df.loc[i, "volatility_change"]) > 0.02: # 2% jump in 30d std dev is massive
+            reasons.append("Volatility Spike")
 
-        if abs(df.loc[i, "concentration_change"]) > 20:
-            reasons.append("Concentration change")
+        # Momentum collapse
+        if df.loc[i, "momentum_change"] < -0.10: # 10% drop relative to moving average
+            reasons.append("Momentum Collapse")
 
-        if abs(df.loc[i, "equity_change"]) > 25:
-            reasons.append("Equity exposure change")
+        # Drawdown acceleration
+        if df.loc[i, "drawdown_change"] < -0.05: # Drawdown worsened by 5% in a day
+            reasons.append("Severe Drawdown")
 
         if reasons:
             df.loc[i, "risk_drift"] = True

@@ -1,94 +1,60 @@
 import matplotlib.pyplot as plt
+import pandas as pd
 
 def plot_risk_distribution(df):
-
-    counts = df["risk_level"].value_counts()
-
+    counts = df["predicted_risk"].value_counts()
     plt.figure()
     counts.plot(kind="bar")
-
-    plt.title("Portfolio Risk Level Distribution")
+    plt.title("Predicted Portfolio Risk Distribution over Time")
     plt.xlabel("Risk Level")
-    plt.ylabel("Number of Portfolios")
-
+    plt.ylabel("Days in State")
     plt.show()
-
-
 
 def plot_anomalies(df):
-
-    counts = df["anomaly"].value_counts()
-
+    counts = df["is_anomaly"].value_counts()
     plt.figure()
     counts.plot(kind="bar")
-
-    plt.title("Anomaly Detection Results")
-    plt.xlabel("Anomaly Label")
-    plt.ylabel("Number of Portfolios")
-
+    plt.title("Anomaly Detection Results (User Timeframe)")
+    plt.xlabel("Is Anomaly")
+    plt.ylabel("Days")
     plt.show()
 
-
-
-
 def plot_risk_scatter(df):
-
     colors = {
         "Low": "green",
         "Medium": "orange",
         "High": "red"
     }
+    
+    plt.figure(figsize=(10, 6))
 
-    plt.figure()
-
-    for risk in df["risk_level"].unique():
-        subset = df[df["risk_level"] == risk]
-
+    for risk in df["predicted_risk"].unique():
+        subset = df[df["predicted_risk"] == risk]
+        
+        # Plot Volatility vs Drawdown
         plt.scatter(
-            subset["volatility"],
-            subset["concentration"],
-            color=colors[risk],
+            subset["volatility_30d"],
+            subset["max_drawdown_90d"],
+            color=colors.get(risk, "blue"),
             label=risk,
-            alpha=0.5
+            alpha=0.6
         )
 
-    plt.xlabel("Volatility")
-    plt.ylabel("Concentration")
-    plt.title("Portfolio Risk Distribution")
-
+    plt.xlabel("30-Day Volatility")
+    plt.ylabel("90-Day Max Drawdown")
+    plt.title(f"Risk Scatter Plot for {df['ticker'].iloc[0]}")
     plt.legend()
+    plt.grid(True, alpha=0.3)
     plt.show()
-
-
-
-def plot_dominant_asset_distribution(df):
-
-    counts = df["dominant_asset"].value_counts()
-
-    plt.figure()
-    counts.plot(kind="bar")
-
-    plt.title("Dominant Asset Class in Portfolios")
-    plt.xlabel("Asset Type")
-    plt.ylabel("Number of Portfolios")
-
-    plt.show()
-
-
 
 def plot_feature_importance(model, feature_names):
-
-    import matplotlib.pyplot as plt
-    import pandas as pd
-
     importance = model.feature_importances_
-
     feature_importance = pd.Series(importance, index=feature_names)
-
+    
+    plt.figure(figsize=(8, 5))
     feature_importance.sort_values().plot(kind="barh")
-
     plt.title("Feature Importance for Risk Prediction")
     plt.xlabel("Importance Score")
     plt.ylabel("Features")
-
+    plt.tight_layout()
     plt.show()
