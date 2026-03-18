@@ -18,25 +18,23 @@ def prepare_features(df: pd.DataFrame, is_training: bool = False) -> tuple:
     df["daily_return"] = df["price"].pct_change()
     
     # 2. Rolling Volatility (30 days)
-    # We use std dev of returns. (Multiplying by sqrt(252) would annualize it, but daily is fine for ML)
-    df["volatility_30d"] = df["daily_return"].rolling(window=30).std()
+    # We use min_periods=2 to keep very recent assets (just fillna 0 for day 1)
+    df["volatility_30d"] = df["daily_return"].rolling(window=30, min_periods=2).std().fillna(0)
     
-    # 3. Momentum (30 days) - Current price vs 30-day moving average
-    df["ma_30d"] = df["price"].rolling(window=30).mean()
-    df["momentum_30d"] = (df["price"] - df["ma_30d"]) / df["ma_30d"]
+    # 3. Momentum (30 days)
+    df["ma_30d"] = df["price"].rolling(window=30, min_periods=1).mean()
+    df["momentum_30d"] = ((df["price"] - df["ma_30d"]) / df["ma_30d"]).fillna(0)
     
     # 4. Maximum Drawdown (90 days)
     rolling_max_90d = df["price"].rolling(window=90, min_periods=1).max()
     df["drawdown"] = (df["price"] - rolling_max_90d) / rolling_max_90d
-    df["max_drawdown_90d"] = df["drawdown"].rolling(window=90).min()
+    df["max_drawdown_90d"] = df["drawdown"].rolling(window=90, min_periods=1).min().fillna(0)
     
     # 5. Rolling Sharpe Ratio (30 days)
-    # Annualized Sharpe: (Mean Daily Return / Daily Volatility) * sqrt(252 trading days)
-    # Assuming risk-free rate is roughly 0% for this daily rolling metric
-    df["mean_return_30d"] = df["daily_return"].rolling(window=30).mean()
-    # Use np.where to avoid division by zero if volatility is exactly 0
+    df["mean_return_30d"] = df["daily_return"].rolling(window=30, min_periods=1).mean().fillna(0)
     df["sharpe_ratio_30d"] = np.where(df["volatility_30d"] == 0, 0, 
                                      (df["mean_return_30d"] / df["volatility_30d"]) * np.sqrt(252))
+    df["sharpe_ratio_30d"] = df["sharpe_ratio_30d"].fillna(0)
     
     target = None
     
@@ -71,8 +69,13 @@ def prepare_features(df: pd.DataFrame, is_training: bool = False) -> tuple:
         
         target = df["risk_level"]
     else:
-        # If evaluating user portfolio, we just drop the initial NaN rows from rolling windows
-        df.dropna(subset=["volatility_30d", "max_drawdown_90d"], inplace=True)
+        # If evaluating user portfolio, we don't drop rows because min_periods handles small datasets.
+        # We just fill any remaining NaNs (like the first row's daily_return) with 0.
+        df.fillna(0, inplace=True)
+        
+    # SANITIZE INFINITY: For micro-cap cryptos (like SHIB) where prices are $0.0000X, 
+    # rolling divisions can overflow to infinity. Scrub them safely.
+    df.replace([np.inf, -np.inf], 0, inplace=True)
     
     # Select final features
     feature_cols = ["daily_return", "volatility_30d", "momentum_30d", "max_drawdown_90d", "sharpe_ratio_30d"]

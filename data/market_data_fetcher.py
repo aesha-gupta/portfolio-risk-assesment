@@ -18,8 +18,13 @@ class MarketDataFetcher:
         stock = yf.Ticker(ticker)
         # Use a long history (e.g. max)
         hist = stock.history(period="max")
+        
+        if hist.empty:
+            return pd.DataFrame()
+            
         # yfinance returns timezone-aware indexes. Let's make it tz-naive for simplicity later if needed
-        hist.index = hist.index.tz_localize(None)
+        if hist.index.tz is not None:
+            hist.index = hist.index.tz_localize(None)
         
         # We only really need the 'Close' or 'Adj Close'
         # Yfinance 'history' method usually adjusts the 'Close' column automatically for splits and dividends
@@ -47,7 +52,12 @@ class MarketDataFetcher:
         
         stock = yf.Ticker(ticker)
         hist = stock.history(start=start_date)
-        hist.index = hist.index.tz_localize(None)
+        
+        if hist.empty:
+            return pd.DataFrame()
+            
+        if hist.index.tz is not None:
+            hist.index = hist.index.tz_localize(None)
         
         df = hist[['Close', 'Volume']].copy()
         df.rename(columns={'Close': 'price', 'Volume': 'volume'}, inplace=True)
