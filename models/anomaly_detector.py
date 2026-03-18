@@ -1,7 +1,7 @@
 from sklearn.ensemble import IsolationForest
 
 
-def detect_anomalies(X):
+def detect_anomalies(X, return_scores=False):
 
     """
     Detects anomalous portfolios using Isolation Forest.
@@ -17,6 +17,9 @@ def detect_anomalies(X):
     # predict anomalies
     predictions = model.predict(X)
 
+    if return_scores:
+        scores = model.decision_function(X)
+        return predictions, scores
     return predictions
 
 
