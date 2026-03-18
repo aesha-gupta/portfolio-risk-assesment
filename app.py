@@ -85,16 +85,19 @@ if run_button:
     st.subheader("📊 Assessment Results")
     
     # Top Line Metrics
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         st.metric("Total Days Analyzed", len(df_eval))
     with col2:
+        current_sharpe = df_eval["sharpe_ratio_30d"].iloc[-1]
+        st.metric("Current Sharpe Ratio", round(current_sharpe, 2))
+    with col3:
         high_risk_days = (df_eval["predicted_risk"] == "High").sum()
         st.metric("High-Risk Days", high_risk_days, str(round(high_risk_days/len(df_eval)*100, 1)) + "%")
-    with col3:
+    with col4:
         anomalies_found = df_eval["is_anomaly"].sum()
         st.metric("Anomalies Detected", anomalies_found, delta_color="inverse")
-    with col4:
+    with col5:
         drifts = df_eval["risk_drift"].sum()
         st.metric("Risk Drifts Found", drifts, delta_color="inverse")
 

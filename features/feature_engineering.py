@@ -30,6 +30,14 @@ def prepare_features(df: pd.DataFrame, is_training: bool = False) -> tuple:
     df["drawdown"] = (df["price"] - rolling_max_90d) / rolling_max_90d
     df["max_drawdown_90d"] = df["drawdown"].rolling(window=90).min()
     
+    # 5. Rolling Sharpe Ratio (30 days)
+    # Annualized Sharpe: (Mean Daily Return / Daily Volatility) * sqrt(252 trading days)
+    # Assuming risk-free rate is roughly 0% for this daily rolling metric
+    df["mean_return_30d"] = df["daily_return"].rolling(window=30).mean()
+    # Use np.where to avoid division by zero if volatility is exactly 0
+    df["sharpe_ratio_30d"] = np.where(df["volatility_30d"] == 0, 0, 
+                                     (df["mean_return_30d"] / df["volatility_30d"]) * np.sqrt(252))
+    
     target = None
     
     if is_training:
@@ -67,7 +75,7 @@ def prepare_features(df: pd.DataFrame, is_training: bool = False) -> tuple:
         df.dropna(subset=["volatility_30d", "max_drawdown_90d"], inplace=True)
     
     # Select final features
-    feature_cols = ["daily_return", "volatility_30d", "momentum_30d", "max_drawdown_90d"]
+    feature_cols = ["daily_return", "volatility_30d", "momentum_30d", "max_drawdown_90d", "sharpe_ratio_30d"]
     features = df[feature_cols]
     
     # We return the modified df as well so the user can see their portfolio dates/prices
